@@ -139,6 +139,124 @@ def insert(cursor: sqlite3.Cursor, table_name: str, Type, obj: any, parent_keys:
     raise Exception(f'Error!  Unknown OriginType = {OriginType}')
     
 
+def select_from_table(cursor: sqlite3.Cursor, table_name: str, column_names: List[str]=[], parent_keys: Dict[str, any]={}):
+    column_names_string = ', '.join(column_names)
+
+    if len(parent_keys) > 0:
+        conditional_string = 'where ' + ' and '.join([f'{key} is ?' for key in parent_keys])
+    else:
+        conditional_string = ''
+
+    for values in cursor.execute(f'select {column_names_string} from {table_name} {conditional_string}', list(parent_keys.values())):
+        yield dict(zip(column_names, values))
+
+
+def select_key_values(cursor: sqlite3.Cursor, table_name: str, key_column_name: str, parent_keys: Dict[str, any]={}):
+    """Returns a sorted list of keys for the `key_column_name`
+
+    Args:
+        cursor (sqlite3.Cursor): SQLite3 cursor to use
+        table_name (str): Name of the table
+        key_column_name (str): Name of the key column
+        parent_keys (Dict[str, any], optional): Any parent keys to restrict search to. Defaults to {}.
+    """
+
+    conditional_string = ' and '.join([f'{key} is ?' for key in parent_keys])
+
+    results = cursor.execute(f'select distinct {key_column_name} from {table_name} where {conditional_string} order by {key_column_name} asc', list(parent_keys.values()))
+
+    return_list: List = [row[0] for row in results]
+    return return_list
+
+
+def get(cursor: sqlite3.Cursor, table_name: str, Type, parent_keys: Dict[str, any]={}):
+    table_id = f'{table_name}_id'
+
+    # a) simple datatypes (in type_map)
+    if Type in type_map:
+        return next(select_from_table(cursor, table_name, ['value'], parent_keys))['value']
+
+    # b) Lists
+    OriginType = get_origin(Type)
+    if OriginType == list:
+        # Table for the list (no data columns)
+        ItemType = get_args(Type)[0]
+        index_number = len(parent_keys)
+        key_column_name = 'index' + str(index_number)
+        list_indices: List[int] = select_key_values(cursor, table_name, key_column_name, parent_keys)
+
+        return_list: List = []
+        for list_index in list_indices:
+            new_parent_keys = copy.deepcopy(parent_keys)
+            new_parent_keys[key_column_name] = list_index
+            item = get(cursor, table_name, ItemType, new_parent_keys)
+            return_list.append(item)
+        return return_list
+    
+    # c) Dicts
+    if OriginType == dict:
+        # Table for the dict items
+        ValueType = get_args(Type)[1]
+        index_number = len(parent_keys)
+        key_column_name = 'key' + str(index_number)
+        dict_keys: List[str] = select_key_values(cursor, table_name, key_column_name, parent_keys)
+
+        return_dict = {}
+        for dict_key in dict_keys:
+            new_parent_keys = copy.deepcopy(parent_keys)
+            new_parent_keys[key_column_name] = dict_key
+            item = get(cursor, table_name, ValueType, new_parent_keys)
+            return_dict[dict_key] = item
+        return return_dict
+
+
+    # d) python objects
+    if OriginType is None:
+
+        column_names: List[str] = [table_id]
+        for var_name, type_hint in get_type_hints(Type).items():
+            if type_hint in type_map:
+                column_names.append(var_name)
+
+        kwargs = next(select_from_table(cursor, table_name, column_names, parent_keys))
+        table_id_value = kwargs[table_id]
+        del(kwargs[table_id])
+
+        for var_name, type_hint in get_type_hints(Type).items():
+            if type_hint not in type_map:
+                child_table_name = table_name + '$' + var_name
+                new_parent_keys = copy.deepcopy(parent_keys)
+                new_parent_keys[table_id] = table_id_value
+                child = get(cursor, child_table_name, type_hint, new_parent_keys)
+                kwargs[var_name] = child
+
+        return Type(**kwargs)
+
+    raise Exception(f'Error!  Unknown OriginType = {OriginType}')
+
+
+def get_objects(cursor: sqlite3.Cursor, table_name: str, Type):
+    table_id_column_name = f'{table_name}_id'
+
+    column_names: List[str] = [table_id_column_name]
+    for var_name, type_hint in get_type_hints(Type).items():
+        if type_hint in type_map:
+            column_names.append(var_name)
+
+    for kwargs in select_from_table(cursor, table_name, column_names):
+        table_id_value = kwargs[table_id_column_name]
+        del(kwargs[table_id_column_name])
+
+        for var_name, type_hint in get_type_hints(Type).items():
+            if type_hint not in type_map:
+                child_table_name = table_name + '$' + var_name
+                new_parent_keys = {table_id_column_name: table_id_value}
+                child = get(cursor, child_table_name, type_hint, new_parent_keys)
+                kwargs[var_name] = child
+
+        yield Type(**kwargs)
+
+
 def main():
     db_file = 'test.sqlite'
 
@@ -158,15 +276,22 @@ def main():
         a: int = 37
         b: float = 3.14159
         c: Dict[str, List[AnotherClass]] = field(default_factory=dict)
+        d: List[Dict[str, AnotherClass]] = field(default_factory=list)
 
     obj = Class(a=934, b=3.4, c={
         'test':[AnotherClass(baz=2, bar=3), AnotherClass(baz=1, bar=42)],
         'sanville':[AnotherClass(baz=23, bar=98)]
-    })
+    },
+    d = [
+        {'doots': AnotherClass(baz=87, bar=27.6)}
+    ])
     print(obj)
 
     create_type_table(cursor, 'objects', Class)
     insert(cursor, 'objects', Class, obj)
+
+    for obj in get_objects(cursor, 'objects', Class):
+        print(obj)
 
     db.commit()
 
