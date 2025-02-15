@@ -24,7 +24,7 @@ def normalize(obj: any):
 
 
 def denormalize(obj: any, Class):
-    if Class is None:
+    if Class is None or Class is Any:
         return obj
 
     t = type(obj)
@@ -76,7 +76,7 @@ def denormalize(obj: any, Class):
 
     # python objects
     if t != dict:
-        raise Exception("Need a dict when denormalizing to a class")
+        raise Exception(f"Need a dict when denormalizing to class '{Class}', got '{t}': {obj}")
     
     kwargs = {}
     for var_name, type_hint in get_type_hints(Class).items():
