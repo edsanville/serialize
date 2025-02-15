@@ -14,6 +14,12 @@ type_map = {
     bool: 'integer'
 }
 
+sqlite_to_python_type_map = {
+    'integer': 'int',
+    'text': 'str',
+    'real': 'float'
+}
+
 
 def create_table(cursor: sqlite3.Cursor, table_name: str, column_names: List[str]):
     columns_string = ', '.join(column_names)
@@ -295,5 +301,21 @@ def main():
 
     db.commit()
 
+
+def SQLite_fields_to_python_dataclass(fields_string: str):
+    field_string_list = fields_string.split(',')
+    field_descriptors: List[List[str]] = []
+
+    for field_string in field_string_list:
+        field_desc = field_string.split()
+        field_desc[1] = sqlite_to_python_type_map[field_desc[1]]
+        field_descriptors.append(field_desc)
+    
+    python_fields_string = ''.join([f'{field_name}: {python_field_type}\n' for field_name, python_field_type in field_descriptors])
+
+    return python_fields_string
+
+
 if __name__ == '__main__':
     main()
+    

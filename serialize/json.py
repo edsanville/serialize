@@ -13,7 +13,7 @@ def normalize(obj: any):
     if t in normal_types:
         return obj
     
-    if t == list:
+    if t == list or t == set:
         return [normalize(item) for item in obj]
 
     if t == dict:
@@ -34,6 +34,9 @@ def denormalize(obj: any, Class):
 
     if Class == list:
         return [item for item in obj]
+    
+    if Class == set:
+        return set([item for item in obj])
 
     if Class == dict:
         return {key: obj[key] for key in obj}
@@ -47,6 +50,16 @@ def denormalize(obj: any, Class):
             return [item for item in obj]
 
         return [denormalize(item, type_args[0]) for item in obj]
+
+    if get_origin(Class) == set:
+        assert(t == list)
+        type_args = get_args(Class)
+        
+        if len(type_args) == 0:
+            # No type arguments
+            return set([item for item in obj])
+
+        return set([denormalize(item, type_args[0]) for item in obj])
 
     if get_origin(Class) == dict:
         assert(t == dict)
@@ -101,8 +114,9 @@ def main():
         a: int = 5
         b: str = 'test'
         c: Dict[str, E] = field(default_factory=dict)
+        d: Set[str] = field(default_factory=set)
 
-    obj = Test(a=7, b='asdf', c={'test1': E(c=False, d=999, e=[1, 3, 8, 0], f={'a': 99})})
+    obj = Test(a=7, b='asdf', c={'test1': E(c=False, d=999, e=[1, 3, 8, 0], f={'a': 99})}, d=set(['test', 'test2']))
 
     dump(obj, open('test.json', 'w'))
 
