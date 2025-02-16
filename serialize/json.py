@@ -101,6 +101,24 @@ def load(fp, Class):
     return denormalize(json.load(fp), Class)
 
 
+T = TypeVar("T")
+
+class JSONFile(Generic[T]):
+    filename: str
+    contents: T
+
+    def __init__(self, filename: str, Class: Callable[[], T]):
+        self.filename = filename
+        
+        try:
+            self.contents = load(open(filename, 'r'), Class)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.contents = Class()
+
+    def save(self):
+        dump(self.contents, open(self.filename, 'w'))
+
+
 def main():
     @dataclass
     class E:
