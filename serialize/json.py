@@ -24,7 +24,7 @@ def normalize(obj: any):
 
 
 def denormalize(obj: any, Class):
-    if Class is None or Class is Any:
+    if Class is None or Class is Any or obj is None:
         return obj
 
     t = type(obj)
