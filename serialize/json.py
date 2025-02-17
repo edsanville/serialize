@@ -31,6 +31,10 @@ def denormalize(obj: any, Class):
 
     if Class == t:
         return obj
+    
+    # We can convert integers to floats without los of data
+    if Class == float and t == int:
+        return float(obj)
 
     if Class == list:
         return [item for item in obj]
