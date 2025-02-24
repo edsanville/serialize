@@ -97,7 +97,7 @@ def dump(obj: any, fp):
     json.dump(normalize(obj), fp)
 
 
-def loads(s: str | bytes | bytearray, Class):
+def loads(s: Union[str, bytes, bytearray], Class):
     return denormalize(json.loads(s), Class)
 
 
