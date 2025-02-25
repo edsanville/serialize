@@ -6,6 +6,7 @@ import json
 
 normal_types = set([int, float, str, bool, type(None)])
 
+T = TypeVar("T")
 
 def normalize(obj: any):
     t = type(obj)
@@ -23,7 +24,8 @@ def normalize(obj: any):
     return {key: normalize(getattr(obj, key)) for key in vars(obj)}
 
 
-def denormalize(obj: any, Class):
+
+def denormalize(obj: any, Class: Callable[[], T]) -> T:
     if Class is None or Class is Any or obj is None:
         return obj
 
@@ -45,6 +47,9 @@ def denormalize(obj: any, Class):
     if Class == dict:
         return {key: obj[key] for key in obj}
     
+    if get_origin(Class) == Literal:
+        return obj
+
     if get_origin(Class) == list:
         assert(t == list)
         type_args = get_args(Class)
@@ -97,15 +102,13 @@ def dump(obj: any, fp):
     json.dump(normalize(obj), fp)
 
 
-def loads(s: Union[str, bytes, bytearray], Class):
+def loads(s: Union[str, bytes, bytearray], Class: Callable[[], T]) -> T:
     return denormalize(json.loads(s), Class)
 
 
-def load(fp, Class):
+def load(fp, Class: Callable[[], T]) -> T:
     return denormalize(json.load(fp), Class)
 
-
-T = TypeVar("T")
 
 class JSONFile(Generic[T]):
     filename: str
@@ -140,9 +143,9 @@ def main():
 
     obj = Test(a=7, b='asdf', c={'test1': E(c=False, d=999, e=[1, 3, 8, 0], f={'a': 99})}, d=set(['test', 'test2']))
 
-    dump(obj, open('test.json', 'w'))
+    dump([obj], open('test.json', 'w'))
 
-    obj2 = load(open('test.json'), Test)
+    obj2 = load(open('test.json'), List[Test])
 
     print(obj)
     print(obj2)

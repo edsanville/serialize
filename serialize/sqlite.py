@@ -6,6 +6,8 @@ import sqlite3
 import os
 import copy
 
+T = TypeVar("T")
+
 
 type_map = {
     int: 'integer',
@@ -241,7 +243,7 @@ def get(cursor: sqlite3.Cursor, table_name: str, Type, parent_keys: Dict[str, an
     raise Exception(f'Error!  Unknown OriginType = {OriginType}')
 
 
-def get_objects(cursor: sqlite3.Cursor, table_name: str, Type):
+def get_objects(cursor: sqlite3.Cursor, table_name: str, Type: Callable[[], T]) -> Iterable[T]:
     table_id_column_name = f'{table_name}_id'
 
     column_names: List[str] = [table_id_column_name]
