@@ -94,20 +94,20 @@ def denormalize(obj: any, Class: Callable[[], T]) -> T:
     return Class(**kwargs)
 
 
-def dumps(obj: any):
-    return json.dumps(normalize(obj))
+def dumps(obj: any, **kwargs):
+    return json.dumps(normalize(obj), **kwargs)
 
 
-def dump(obj: any, fp):
-    json.dump(normalize(obj), fp)
+def dump(obj: any, fp, **kwargs):
+    json.dump(normalize(obj), fp, **kwargs)
 
 
-def loads(s: Union[str, bytes, bytearray], Class: Callable[[], T]) -> T:
-    return denormalize(json.loads(s), Class)
+def loads(s: Union[str, bytes, bytearray], Class: Callable[[], T], **kwargs) -> T:
+    return denormalize(json.loads(s, **kwargs), Class)
 
 
-def load(fp, Class: Callable[[], T]) -> T:
-    return denormalize(json.load(fp), Class)
+def load(fp, Class: Callable[[], T], **kwargs) -> T:
+    return denormalize(json.load(fp, **kwargs), Class)
 
 
 class JSONFile(Generic[T]):
