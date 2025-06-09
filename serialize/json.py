@@ -18,10 +18,10 @@ def normalize(obj: any):
         return [normalize(item) for item in obj]
 
     if t == dict:
-        return {key: normalize(obj[key]) for key in obj}
+        return {key: normalize(obj[key]) for key in obj if obj[key] is not None}
     
     # python objects
-    return {key: normalize(getattr(obj, key)) for key in vars(obj)}
+    return {key: normalize(getattr(obj, key)) for key in vars(obj) if getattr(obj, key) is not None}
 
 
 
