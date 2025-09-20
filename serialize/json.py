@@ -21,8 +21,10 @@ def normalize(obj: any):
         return {key: normalize(obj[key]) for key in obj if obj[key] is not None}
     
     # python objects
-    return {key: normalize(getattr(obj, key)) for key in vars(obj) if getattr(obj, key) is not None}
-
+    try:
+        return {key: normalize(getattr(obj, key)) for key in vars(obj) if getattr(obj, key) is not None}
+    except Exception as e:
+        raise Exception(f"Cannot serialize object of type '{t}': {obj}, {e}")
 
 
 def denormalize(obj: any, Class: Callable[[], T]) -> T:
